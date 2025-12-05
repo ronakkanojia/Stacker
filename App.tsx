@@ -111,7 +111,7 @@ const App: React.FC = () => {
                       <div className="relative">
                         <div className="absolute inset-0 bg-gradient-to-r from-cyan-500/20 to-purple-500/20 blur-xl"></div>
                         <div className="relative px-6 py-2 bg-gradient-to-r from-white to-gray-200 text-black font-black tracking-[0.4em] text-sm md:text-base uppercase transform -skew-x-6 shadow-lg">
-                          3D NEON EDITION
+                          3D EDITION
                         </div>
                       </div>
                   </div>
