@@ -20,10 +20,11 @@ export default defineConfig(({ mode }) => {
         }
       },
       build: {
-        chunkSizeWarningLimit: 2000, // Increase for Three.js
+        chunkSizeWarningLimit: 2000, // Increase to 2000 KB for Three.js
         rollupOptions: {
           output: {
             manualChunks(id) {
+              // Split node_modules into separate chunks
               if (id.includes('node_modules')) {
                 if (id.includes('three')) {
                   return 'three-vendor';
@@ -34,16 +35,10 @@ export default defineConfig(({ mode }) => {
                 if (id.includes('react') || id.includes('react-dom')) {
                   return 'react-vendor';
                 }
+                // All other node_modules
                 return 'vendor';
               }
             }
-          }
-        },
-        target: 'es2015', // Better mobile browser support
-        minify: 'terser',
-        terserOptions: {
-          compress: {
-            drop_console: true, // Remove console logs in production
           }
         }
       }
