@@ -1,4 +1,3 @@
-
 import React, { useRef } from 'react';
 import { BoxState } from '../types';
 import { Mesh } from 'three';

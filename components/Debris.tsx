@@ -1,4 +1,3 @@
-
 import React, { useRef, useState } from 'react';
 import { useFrame } from '@react-three/fiber';
 import { Mesh } from 'three';
