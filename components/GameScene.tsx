@@ -1,6 +1,6 @@
 import React, { useRef, useState, useEffect } from 'react';
 import { useFrame, useThree } from '@react-three/fiber';
-import { PerspectiveCamera, EffectComposer, Bloom } from '@react-three/drei';
+import { PerspectiveCamera } from '@react-three/drei';
 import * as THREE from 'three';
 import { Block } from './Block';
 import { Debris } from './Debris';
@@ -24,7 +24,7 @@ interface GameSceneProps {
   gameStatus: GameStatus;
   setScore: (score: number) => void;
   setGameStatus: (status: GameStatus) => void;
-  triggerAction: boolean;
+  triggerAction: boolean; // Signal from UI to place block
   setTriggerAction: (val: boolean) => void;
 }
 
@@ -35,9 +35,11 @@ export const GameScene: React.FC<GameSceneProps> = ({
   triggerAction,
   setTriggerAction
 }) => {
+  // --- State ---
   const [stack, setStack] = useState<BoxState[]>([]);
   const [debris, setDebris] = useState<DebrisState[]>([]);
   
+  // Current moving block properties (managed via refs for performance)
   const activeBlockRef = useRef<THREE.Mesh>(null);
   const activeBlockState = useRef<BoxState | null>(null);
   const movementTime = useRef(0);
@@ -46,9 +48,10 @@ export const GameScene: React.FC<GameSceneProps> = ({
   
   const cameraRef = useRef<THREE.PerspectiveCamera>(null);
 
+  // --- Helpers ---
   const getGradientColor = (index: number) => {
     const hue = (BASE_HUE + index * HUE_STEP) % 360;
-    return `hsl(${hue}, 100%, 60%)`;
+    return `hsl(${hue}, 80%, 60%)`;
   };
 
   const resetGame = () => {
@@ -61,15 +64,19 @@ export const GameScene: React.FC<GameSceneProps> = ({
     setDebris([]);
     setScore(0);
     
+    // Setup first moving block
     spawnNextBlock(baseBlock, 1);
+    
     speed.current = MOVE_SPEED_BASE;
 
+    // Reset Camera Position immediately
     if (cameraRef.current) {
         cameraRef.current.position.set(...CAMERA_START_POS);
         cameraRef.current.lookAt(0, 0, 0);
     }
 
-    document.body.style.background = '#000000';
+    // Reset background color
+    document.body.style.background = getGradientColor(0);
   };
 
   const spawnNextBlock = (prevBlock: BoxState, level: number) => {
@@ -81,6 +88,7 @@ export const GameScene: React.FC<GameSceneProps> = ({
       prevBlock.position[2]
     ];
 
+    // Start position (offset by range)
     if (axis.current === 'x') {
       newPos[0] -= MOVE_RANGE;
     } else {
@@ -96,6 +104,8 @@ export const GameScene: React.FC<GameSceneProps> = ({
     movementTime.current = 0;
   };
 
+  // --- Game Logic ---
+
   const placeBlock = () => {
     if (!activeBlockState.current || stack.length === 0) return;
 
@@ -104,17 +114,21 @@ export const GameScene: React.FC<GameSceneProps> = ({
     const currentAxis = axis.current;
     const idx = currentAxis === 'x' ? 0 : 2;
 
+    // Calculate delta and overlap
+    // current.position is managed by the ref in useFrame, we need to sync it
     const realPosition = activeBlockRef.current!.position.toArray() as [number, number, number];
     
     const delta = realPosition[idx] - prev.position[idx];
     const overlap = prev.size[idx] - Math.abs(delta);
 
     if (overlap <= 0) {
+      // Game Over
       setGameStatus(GameStatus.GAME_OVER);
       audioManager.playFail();
       return;
     }
 
+    // Success - trim block
     const newSize = [...prev.size] as [number, number, number];
     newSize[idx] = overlap;
 
@@ -129,13 +143,15 @@ export const GameScene: React.FC<GameSceneProps> = ({
     };
 
     setStack((prevStack) => [...prevStack, placedBlock]);
-    setScore(stack.length);
+    setScore(stack.length); // Current score is stack length (minus base)
     audioManager.playPlace(stack.length);
 
+    // Create debris
     const debrisSize = [...prev.size] as [number, number, number];
     debrisSize[idx] -= overlap;
 
     const debrisPos = [...newPos] as [number, number, number];
+    // Position debris on the side that was cut off
     const sign = delta > 0 ? 1 : -1;
     debrisPos[idx] = newPos[idx] + (overlap / 2 + debrisSize[idx] / 2) * sign;
 
@@ -146,16 +162,20 @@ export const GameScene: React.FC<GameSceneProps> = ({
       color: current.color,
       velocity: [
         currentAxis === 'x' ? sign * Math.random() : 0,
-        Math.random() * 2,
+        Math.random() * 2, // Slight pop up
         currentAxis === 'z' ? sign * Math.random() : 0,
       ],
       rotationSpeed: [Math.random(), Math.random(), Math.random()]
     };
     setDebris((prev) => [...prev, newDebris]);
     
+    // Increase speed slightly
     speed.current += MOVE_SPEED_INCREMENT;
+
+    // Prepare next
     spawnNextBlock(placedBlock, stack.length + 1);
 
+    // Confetti every 10 blocks
     if (stack.length % 10 === 0) {
         confetti({
             particleCount: 100,
@@ -165,12 +185,17 @@ export const GameScene: React.FC<GameSceneProps> = ({
     }
   };
 
+  // --- Effects ---
+
+  // Initialize game on load or restart
   useEffect(() => {
     if (gameStatus === GameStatus.PLAYING) {
+      // Always reset the game when status switches to PLAYING
       resetGame();
     }
   }, [gameStatus]);
 
+  // Handle external trigger (mouse click / spacebar)
   useEffect(() => {
     if (triggerAction && gameStatus === GameStatus.PLAYING) {
       placeBlock();
@@ -178,17 +203,30 @@ export const GameScene: React.FC<GameSceneProps> = ({
     }
   }, [triggerAction]);
 
+  // Update background color based on stack height
   useEffect(() => {
     if (stack.length > 0) {
-      const hue = (BASE_HUE + (stack.length - 1) * HUE_STEP) % 360;
+      // Get the color of the top block
+      const topColor = stack[stack.length - 1].color;
+      // Animate body background
       document.body.style.transition = 'background 0.5s ease';
-      document.body.style.background = `radial-gradient(circle at 50% 10%, hsl(${hue}, 80%, 10%), #000000)`;
+      
+      // We want a nice gradient based on the current hue
+      const hue = (BASE_HUE + (stack.length - 1) * HUE_STEP) % 360;
+      
+      const bgTop = `hsl(${hue}, 40%, 20%)`;
+      const bgBottom = `hsl(${(hue + 40) % 360}, 40%, 10%)`;
+      
+      document.body.style.background = `radial-gradient(circle at 50% 10%, ${bgTop}, ${bgBottom})`;
     }
   }, [stack.length]);
 
+
+  // --- Render Loop ---
   useFrame((state, delta) => {
     if (gameStatus !== GameStatus.PLAYING) return;
 
+    // Move Active Block
     if (activeBlockRef.current && activeBlockState.current) {
       movementTime.current += delta * speed.current;
       const moveValue = Math.sin(movementTime.current * 3) * MOVE_RANGE;
@@ -197,21 +235,30 @@ export const GameScene: React.FC<GameSceneProps> = ({
       if (axis.current === 'x') pos[0] = moveValue;
       else pos[2] = moveValue;
 
+      // Manually updating ref mesh to avoid react re-renders
       activeBlockRef.current.position.set(pos[0], pos[1], pos[2]);
     }
 
+    // --- Camera Follow Logic ---
     if (cameraRef.current) {
+        // Calculate the current height of the stack top
         const stackHeight = Math.max(0, (stack.length - 1) * BLOCK_HEIGHT);
+        
+        // Target Camera Y: Start Y position + the height the tower has grown
         const targetCamY = CAMERA_START_POS[1] + stackHeight;
 
+        // Smoothly move current Y to target Y
         cameraRef.current.position.y = THREE.MathUtils.lerp(
             cameraRef.current.position.y,
             targetCamY,
             delta * 2.5 
         );
 
+        // Keep X and Z locked to their initial offsets relative to the center
         cameraRef.current.position.x = CAMERA_START_POS[0];
         cameraRef.current.position.z = CAMERA_START_POS[2];
+
+        // LOOK AT LOGIC:
         cameraRef.current.lookAt(0, stackHeight, 0);
     }
   });
@@ -227,81 +274,48 @@ export const GameScene: React.FC<GameSceneProps> = ({
         far={500}
       />
 
+      {/* Dynamic Starfield Background */}
       <StarField count={200} />
 
-      {/* Darker ambient light for neon effect */}
-      <ambientLight intensity={0.2} />
-      
-      {/* Colored point lights for neon atmosphere */}
-      <pointLight position={[10, 20, 10]} intensity={1.5} color="#ff00ff" distance={30} />
-      <pointLight position={[-10, 15, -10]} intensity={1.5} color="#00ffff" distance={30} />
-      <pointLight position={[0, 10, 15]} intensity={1.2} color="#ffff00" distance={25} />
-
-      {/* Bloom post-processing for glow effect */}
-      <EffectComposer>
-        <Bloom 
-          intensity={1.5} 
-          luminanceThreshold={0.2} 
-          luminanceSmoothing={0.9}
-          mipmapBlur
-        />
-      </EffectComposer>
+      <ambientLight intensity={0.6} />
+      <directionalLight 
+        position={[10, 20, 10]} 
+        intensity={0.8} 
+        castShadow 
+        shadow-mapSize={[1024, 1024]} 
+      />
+      <pointLight position={[-10, 10, -10]} intensity={0.4} color="#00ffff" />
 
       <group>
+        {/* Stacked Blocks */}
         {stack.map((box, i) => (
           <Block key={i} {...box} />
         ))}
 
+        {/* Current Moving Block */}
         {gameStatus === GameStatus.PLAYING && activeBlockState.current && (
-          <group>
-            {/* Main moving block with enhanced glow */}
-            <mesh 
-              ref={activeBlockRef} 
-              position={activeBlockState.current.position} 
-              castShadow 
-              receiveShadow
-            >
-              <boxGeometry args={activeBlockState.current.size} />
-              <meshStandardMaterial 
+           <mesh 
+             ref={activeBlockRef} 
+             position={activeBlockState.current.position} 
+             castShadow 
+             receiveShadow
+           >
+             <boxGeometry args={activeBlockState.current.size} />
+             <meshStandardMaterial 
                 color={activeBlockState.current.color} 
-                roughness={0.2}
-                metalness={0.8}
+                roughness={0.1}
                 emissive={activeBlockState.current.color}
-                emissiveIntensity={0.8}
-              />
-            </mesh>
-            
-            {/* Glow layers for moving block */}
-            <mesh position={activeBlockState.current.position}>
-              <boxGeometry args={[
-                activeBlockState.current.size[0] + 0.1, 
-                activeBlockState.current.size[1] + 0.1, 
-                activeBlockState.current.size[2] + 0.1
-              ]} />
-              <meshBasicMaterial 
-                color={activeBlockState.current.color} 
-                transparent 
-                opacity={0.4} 
-                depthWrite={false}
-              />
-            </mesh>
-            
-            <mesh position={activeBlockState.current.position}>
-              <boxGeometry args={[
-                activeBlockState.current.size[0] + 0.25, 
-                activeBlockState.current.size[1] + 0.25, 
-                activeBlockState.current.size[2] + 0.25
-              ]} />
-              <meshBasicMaterial 
-                color={activeBlockState.current.color} 
-                transparent 
-                opacity={0.2} 
-                depthWrite={false}
-              />
-            </mesh>
-          </group>
+                emissiveIntensity={0.2}
+             />
+             {/* Highlight edges */}
+              <mesh position={[0, 0, 0]}>
+                <boxGeometry args={[activeBlockState.current.size[0] + 0.02, activeBlockState.current.size[1] + 0.02, activeBlockState.current.size[2] + 0.02]} />
+                <meshBasicMaterial color="#ffffff" transparent opacity={0.2} side={1} /> 
+              </mesh>
+           </mesh>
         )}
 
+        {/* Debris */}
         {debris.map((d) => (
           <Debris 
             key={d.id} 
