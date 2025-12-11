@@ -102,9 +102,10 @@ const App: React.FC = () => {
                       {/* Enhanced Logo with glow */}
                       <div className="relative mb-6">
                         <div className="absolute inset-0 blur-3xl bg-white/20 scale-110"></div>
-                        <h1 className="relative text-7xl md:text-9xl font-black text-transparent bg-clip-text bg-gradient-to-br from-white via-cyan-200 to-purple-300 drop-shadow-[0_10px_40px_rgba(255,255,255,0.3)] tracking-tighter italic transform -skew-x-6 mb-3 animate-pulse">
+                        <h1 className="relative text-6xl sm:text-7xl md:text-9xl font-black text-transparent bg-clip-text bg-gradient-to-br from-white via-cyan-200 to-purple-300 drop-shadow-[0_10px_40px_rgba(255,255,255,0.3)] tracking-tighter italic transform -skew-x-3 sm:-skew-x-6 mb-3 animate-pulse px-6 max-w-[95vw] mx-auto">
                           STACKER
-                        </h1>
+                       </h1>
+
                       </div>
                       
                       {/* Subtitle badge */}
