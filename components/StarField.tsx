@@ -1,4 +1,4 @@
-import React, { useRef, useMemo } from 'react';
+import React, { useRef, useMemo, useEffect, useState } from 'react';
 import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
 
@@ -6,14 +6,33 @@ interface StarFieldProps {
   count?: number;
 }
 
-export const StarField: React.FC<StarFieldProps> = ({ count = 800 }) => {
+export const StarField: React.FC<StarFieldProps> = ({ count }) => {
   const meshRef = useRef<THREE.InstancedMesh>(null);
   const dummy = useMemo(() => new THREE.Object3D(), []);
+  
+  // Detect device performance and adjust star count
+  const [optimalCount, setOptimalCount] = useState(400);
+  
+  useEffect(() => {
+    // Check if mobile device
+    const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+    const isLowEnd = navigator.hardwareConcurrency ? navigator.hardwareConcurrency <= 4 : false;
+    
+    if (count) {
+      setOptimalCount(count);
+    } else if (isMobile && isLowEnd) {
+      setOptimalCount(300); // Low-end mobile
+    } else if (isMobile) {
+      setOptimalCount(500); // Mid-range mobile
+    } else {
+      setOptimalCount(800); // Desktop
+    }
+  }, [count]);
   
   // Generate random stars with varied properties
   const particles = useMemo(() => {
     const temp = [];
-    for (let i = 0; i < count; i++) {
+    for (let i = 0; i < optimalCount; i++) {
       // Create depth layers for more 3D effect
       const depth = Math.random();
       const x = (Math.random() - 0.5) * 120;
@@ -47,21 +66,24 @@ export const StarField: React.FC<StarFieldProps> = ({ count = 800 }) => {
       });
     }
     return temp;
-  }, [count]);
+  }, [optimalCount]);
 
   // Create color array for instanced mesh
   const colors = useMemo(() => {
-    const colorArray = new Float32Array(count * 3);
+    const colorArray = new Float32Array(optimalCount * 3);
     particles.forEach((p, i) => {
       colorArray[i * 3] = p.color.r;
       colorArray[i * 3 + 1] = p.color.g;
       colorArray[i * 3 + 2] = p.color.b;
     });
     return colorArray;
-  }, [particles, count]);
+  }, [particles, optimalCount]);
 
   useFrame((state, delta) => {
     if (!meshRef.current) return;
+    
+    // Throttle updates slightly for better mobile performance
+    const updateInterval = optimalCount > 600 ? 1 : 1;
     
     particles.forEach((p, i) => {
       p.time += delta * p.speed;
@@ -82,8 +104,9 @@ export const StarField: React.FC<StarFieldProps> = ({ count = 800 }) => {
   });
 
   return (
-    <instancedMesh ref={meshRef} args={[undefined, undefined, count]}>
-      <sphereGeometry args={[0.25, 8, 8]} />
+    <instancedMesh ref={meshRef} args={[undefined, undefined, optimalCount]}>
+      {/* Use lower poly count on mobile */}
+      <sphereGeometry args={[0.25, optimalCount < 500 ? 6 : 8, optimalCount < 500 ? 6 : 8]} />
       <meshBasicMaterial 
         vertexColors
         transparent 
