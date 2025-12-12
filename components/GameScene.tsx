@@ -23,7 +23,12 @@ import confetti from 'canvas-confetti';
 interface GameSceneProps {
   gameStatus: GameStatus;
   setScore: (score: number) => void;
-  setGameStatus: (status: GameStatus) => void;
+ // --- Helpers ---
+const getGradientColor = (index: number) => {
+  const hue = (BASE_HUE + index * HUE_STEP) % 360;
+  return `hsl(${hue}, 80%, 60%)`;
+};
+ setGameStatus: (status: GameStatus) => void;
   triggerAction: boolean; // Signal from UI to place block
   setTriggerAction: (val: boolean) => void;
 }
@@ -48,67 +53,7 @@ export const GameScene: React.FC<GameSceneProps> = ({
   
   const cameraRef = useRef<THREE.PerspectiveCamera>(null);
 
-  // --- Helpers ---
-  const getGradientColor = (index: number) => {
-    // Categorized vibrant colors for better visual progression
-    const colorSchemes = {
-      warm: [
-        '#FF006E', // Hot Pink
-        '#FF3366', // Pink Red
-        '#F72585', // Fuchsia
-        '#FB5607', // Orange
-        '#FF9E00', // Amber
-        '#F77F00', // Dark Orange
-        '#FFBE0B', // Golden Yellow
-        '#FFD60A', // Yellow
-      ],
-      cool: [
-        '#3A86FF', // Blue
-        '#4361EE', // Royal Blue
-        '#00BBF9', // Light Blue
-        '#00F5FF', // Cyan
-        '#00D9FF', // Sky Blue
-        '#06D6A0', // Teal
-        '#00F5D4', // Turquoise
-        '#06FFA5', // Mint
-      ],
-      purple: [
-        '#8338EC', // Purple
-        '#BF00FF', // Violet
-        '#5E60CE', // Indigo
-        '#9B5DE5', // Lavender
-        '#B5179E', // Purple Pink
-        '#F15BB5', // Pink
-      ],
-      green: [
-        '#7DFF6E', // Lime
-        '#80ED99', // Light Green
-        '#00FFB3', // Aqua
-        '#52B788', // Forest Green
-      ]
-    };
-    
-    // Create a mixed sequence for variety
-    const mixedPalette = [
-      ...colorSchemes.warm.slice(0, 2),
-      ...colorSchemes.cool.slice(0, 2),
-      ...colorSchemes.purple.slice(0, 1),
-      ...colorSchemes.green.slice(0, 1),
-      ...colorSchemes.warm.slice(2, 4),
-      ...colorSchemes.cool.slice(2, 4),
-      ...colorSchemes.purple.slice(1, 3),
-      ...colorSchemes.warm.slice(4, 6),
-      ...colorSchemes.cool.slice(4, 6),
-      ...colorSchemes.green.slice(1, 3),
-      ...colorSchemes.purple.slice(3, 5),
-      ...colorSchemes.warm.slice(6, 8),
-      ...colorSchemes.cool.slice(6, 8),
-      ...colorSchemes.purple.slice(5, 6),
-      ...colorSchemes.green.slice(3, 4),
-    ];
-    
-    return mixedPalette[index % mixedPalette.length];
-  };
+
 
 
   const resetGame = () => {
