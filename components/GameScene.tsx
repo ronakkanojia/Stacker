@@ -54,30 +54,6 @@ export const GameScene: React.FC<GameSceneProps> = ({
     return `hsl(${hue}, 80%, 60%)`;
   };
 
-
-export const GameScene: React.FC<GameSceneProps> = ({
-  gameStatus,
-  setScore,
-  setGameStatus,
-  triggerAction,
-  setTriggerAction
-}) => {
-  // --- State ---
-  const [stack, setStack] = useState<BoxState[]>([]);
-  const [debris, setDebris] = useState<DebrisState[]>([]);
-  
-  // Current moving block properties (managed via refs for performance)
-  const activeBlockRef = useRef<THREE.Mesh>(null);
-  const activeBlockState = useRef<BoxState | null>(null);
-  const movementTime = useRef(0);
-  const speed = useRef(MOVE_SPEED_BASE);
-  const axis = useRef<Axis>('x');
-  
-  const cameraRef = useRef<THREE.PerspectiveCamera>(null);
-
-
-
-
   const resetGame = () => {
     const baseBlock: BoxState = {
       position: [0, 0, 0],
