@@ -3,20 +3,17 @@ import react from '@vitejs/plugin-react';
 
 export default defineConfig({
   plugins: [react()],
-  publicDir: 'public',
   build: {
     outDir: 'dist',
-    assetsDir: 'assets',
+    chunkSizeWarningLimit: 1000, // Increase from 500KB to 1000KB
     rollupOptions: {
-      input: {
-        main: './index.html',
+      output: {
+        manualChunks: {
+          // Split vendor code into separate chunks
+          'react-vendor': ['react', 'react-dom'],
+          'three-vendor': ['three', '@react-three/fiber', '@react-three/drei'],
+        },
       },
-    },
-  },
-  // Ensure service worker is accessible
-  server: {
-    headers: {
-      'Service-Worker-Allowed': '/',
     },
   },
 });
