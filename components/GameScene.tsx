@@ -23,15 +23,37 @@ import confetti from 'canvas-confetti';
 interface GameSceneProps {
   gameStatus: GameStatus;
   setScore: (score: number) => void;
- // --- Helpers ---
-const getGradientColor = (index: number) => {
-  const hue = (BASE_HUE + index * HUE_STEP) % 360;
-  return `hsl(${hue}, 80%, 60%)`;
-};
- setGameStatus: (status: GameStatus) => void;
+  setGameStatus: (status: GameStatus) => void;
   triggerAction: boolean; // Signal from UI to place block
   setTriggerAction: (val: boolean) => void;
 }
+
+export const GameScene: React.FC<GameSceneProps> = ({
+  gameStatus,
+  setScore,
+  setGameStatus,
+  triggerAction,
+  setTriggerAction
+}) => {
+  // --- State ---
+  const [stack, setStack] = useState<BoxState[]>([]);
+  const [debris, setDebris] = useState<DebrisState[]>([]);
+  
+  // Current moving block properties (managed via refs for performance)
+  const activeBlockRef = useRef<THREE.Mesh>(null);
+  const activeBlockState = useRef<BoxState | null>(null);
+  const movementTime = useRef(0);
+  const speed = useRef(MOVE_SPEED_BASE);
+  const axis = useRef<Axis>('x');
+  
+  const cameraRef = useRef<THREE.PerspectiveCamera>(null);
+
+  // --- Helpers ---
+  const getGradientColor = (index: number) => {
+    const hue = (BASE_HUE + index * HUE_STEP) % 360;
+    return `hsl(${hue}, 80%, 60%)`;
+  };
+
 
 export const GameScene: React.FC<GameSceneProps> = ({
   gameStatus,
