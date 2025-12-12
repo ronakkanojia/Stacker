@@ -5,13 +5,26 @@ export default defineConfig({
   plugins: [react()],
   build: {
     outDir: 'dist',
-    chunkSizeWarningLimit: 1000, // Increase from 500KB to 1000KB
+    chunkSizeWarningLimit: 1000,
     rollupOptions: {
       output: {
-        manualChunks: {
-          // Split vendor code into separate chunks
-          'react-vendor': ['react', 'react-dom'],
-          'three-vendor': ['three', '@react-three/fiber', '@react-three/drei'],
+        manualChunks(id) {
+          // Split node_modules into separate chunks
+          if (id.includes('node_modules')) {
+            if (id.includes('three')) {
+              return 'three';
+            }
+            if (id.includes('@react-three')) {
+              return 'react-three';
+            }
+            if (id.includes('react')) {
+              return 'react-vendor';
+            }
+            if (id.includes('canvas-confetti')) {
+              return 'confetti';
+            }
+            return 'vendor'; // All other node_modules
+          }
         },
       },
     },
