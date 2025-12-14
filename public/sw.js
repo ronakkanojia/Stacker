@@ -1,8 +1,9 @@
-const CACHE_NAME = 'stacker-3d-v1.0.0';
-const RUNTIME_CACHE = 'stacker-runtime-v1';
+// Service Worker for Stacker 3D PWA
+const CACHE_VERSION = 'v1';
+const CACHE_NAME = `stacker-3d-${CACHE_VERSION}`;
 
-// Files to cache immediately on install
-const PRECACHE_URLS = [
+// Resources to cache
+const resourcesToCache = [
   '/',
   '/index.html',
   '/manifest.json',
@@ -10,129 +11,69 @@ const PRECACHE_URLS = [
   '/icon-512.png'
 ];
 
-// Install event - precache essential resources
+// Install Service Worker and cache resources
 self.addEventListener('install', (event) => {
+  console.log('Service Worker installing and caching resources');
+  
   event.waitUntil(
     caches.open(CACHE_NAME)
       .then((cache) => {
-        console.log('[SW] Precaching app shell');
-        return cache.addAll(PRECACHE_URLS);
+        console.log('Opened cache and adding resources');
+        return cache.addAll(resourcesToCache);
       })
-      .then(() => {
-        console.log('[SW] Skip waiting');
-        return self.skipWaiting();
-      })
+      .then(() => self.skipWaiting())
   );
 });
 
-// Activate event - clean up old caches
+// Activate Service Worker
 self.addEventListener('activate', (event) => {
-  const currentCaches = [CACHE_NAME, RUNTIME_CACHE];
+  console.log('Service Worker activating');
   
   event.waitUntil(
-    caches.keys()
-      .then((cacheNames) => {
-        return cacheNames.filter((cacheName) => !currentCaches.includes(cacheName));
-      })
-      .then((cachesToDelete) => {
-        return Promise.all(
-          cachesToDelete.map((cacheToDelete) => {
-            console.log('[SW] Deleting old cache:', cacheToDelete);
-            return caches.delete(cacheToDelete);
+    caches.keys().then((cacheNames) => {
+      return Promise.all(
+        cacheNames
+          .filter((name) => name !== CACHE_NAME)
+          .map((name) => {
+            console.log('Deleting old cache:', name);
+            return caches.delete(name);
           })
-        );
-      })
-      .then(() => {
-        console.log('[SW] Claiming clients');
-        return self.clients.claim();
-      })
+      );
+    }).then(() => self.clients.claim())
   );
 });
 
-// Fetch event - Cache strategies
+// Fetch event - Serve from cache, fallback to network
 self.addEventListener('fetch', (event) => {
-  const { request } = event;
-  const url = new URL(request.url);
-
-  // Skip cross-origin requests
-  if (url.origin !== location.origin) {
-    return;
-  }
-
-  // HTML files - Network first, fallback to cache
-  if (request.headers.get('accept').includes('text/html')) {
-    event.respondWith(
-      fetch(request)
-        .then((response) => {
-          const responseClone = response.clone();
-          caches.open(RUNTIME_CACHE).then((cache) => {
-            cache.put(request, responseClone);
-          });
-          return response;
-        })
-        .catch(() => {
-          return caches.match(request)
-            .then((response) => {
-              return response || caches.match('/index.html');
-            });
-        })
-    );
-    return;
-  }
-
-  // CSS, JS, Images - Cache first, fallback to network
-  if (
-    request.headers.get('accept').includes('text/css') ||
-    request.headers.get('accept').includes('application/javascript') ||
-    request.headers.get('accept').includes('image/')
-  ) {
-    event.respondWith(
-      caches.match(request)
-        .then((cachedResponse) => {
-          if (cachedResponse) {
-            return cachedResponse;
-          }
-          
-          return fetch(request)
-            .then((response) => {
-              // Don't cache if not a success response
-              if (!response || response.status !== 200 || response.type === 'error') {
-                return response;
-              }
-              
-              const responseClone = response.clone();
-              caches.open(RUNTIME_CACHE).then((cache) => {
-                cache.put(request, responseClone);
-              });
-              
-              return response;
-            });
-        })
-    );
-    return;
-  }
-
-  // All other requests - Network first with cache fallback
+  console.log('Fetching:', event.request.url);
+  
   event.respondWith(
-    fetch(request)
-      .then((response) => {
-        if (response && response.status === 200) {
-          const responseClone = response.clone();
-          caches.open(RUNTIME_CACHE).then((cache) => {
-            cache.put(request, responseClone);
-          });
+    caches.match(event.request)
+      .then((cachedResponse) => {
+        // Return cached response if found
+        if (cachedResponse) {
+          console.log('Serving from cache:', event.request.url);
+          return cachedResponse;
         }
-        return response;
-      })
-      .catch(() => {
-        return caches.match(request);
+        
+        // Otherwise fetch from network
+        console.log('Fetching from network:', event.request.url);
+        return fetch(event.request)
+          .then((networkResponse) => {
+            // Cache the new response
+            if (networkResponse && networkResponse.status === 200) {
+              const responseToCache = networkResponse.clone();
+              caches.open(CACHE_NAME)
+                .then((cache) => {
+                  cache.put(event.request, responseToCache);
+                });
+            }
+            return networkResponse;
+          })
+          .catch(() => {
+            // Return offline page if available
+            return caches.match('/index.html');
+          });
       })
   );
-});
-
-// Handle messages from clients
-self.addEventListener('message', (event) => {
-  if (event.data && event.data.type === 'SKIP_WAITING') {
-    self.skipWaiting();
-  }
 });
