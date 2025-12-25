@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Canvas } from '@react-three/fiber';
+import { Analytics } from '@vercel/analytics/react';
 import { GameScene } from './components/GameScene';
 import { GameStatus } from './types';
 
@@ -222,6 +223,7 @@ const App: React.FC = () => {
           }
         }
       `}</style>
+      <Analytics />
     </div>
   );
 };
